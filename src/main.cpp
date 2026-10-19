@@ -50,9 +50,11 @@ int main(int argc, char **argv)
     CLI::App app{"spm - Simple Package Manager"};
 
     std::string rawinput;
+    bool autoConfirm = false;
 
     auto *installCmd = app.add_subcommand("install", "Install a package");
     installCmd->add_option("package", rawinput, "Name of the package to install")->required();
+    installCmd->add_flag("-y,--yes", autoConfirm, "Automatically confirm prompts");
 
     CLI11_PARSE(app, argc, argv);
 
@@ -99,6 +101,25 @@ int main(int argc, char **argv)
         std::string downloadUrl = pkgEntry["versions"][targetVersion]["url"];
         std::cout << "[spm] Found target version: " << targetVersion << "\n";
         std::cout << "[spm] Download URL: " << downloadUrl << "\n";
+
+        char confirmInput = 'n';
+
+        if (autoConfirm)
+        {
+            std::cout << "[spm] Skipping confirmation (-y enabled)...\n";
+        }
+        else
+        {
+            std::cout << "[spm] Proceed with installation? (y/N): ";
+            std::cin >> confirmInput;
+            confirmInput = std::tolower(confirmInput);
+
+            if (confirmInput != 'y')
+            {
+                std::cout << "[spm] Installation aborted by user.\n";
+                return 0;
+            }
+        }
 
         // Set up local paths and download archive
         std::string baseDir = getUserDirectory();
