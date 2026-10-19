@@ -24,9 +24,12 @@ namespace spm
 
         bool initializeSchema();
         bool registerPackage(const std::string &name, const std::string &version, const std::string &installPath);
+        bool removePackage(const std::string &name);
 
         bool isPackageRegistered(const std::string &name);
         bool isPackageRegistered(const std::string &name, const std::string &version);
+
+        std::string getPackageInstallPath(const std::string &name);
 
         std::vector<InstalledPackage> getInstalledPackages();
 

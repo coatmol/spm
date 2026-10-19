@@ -15,10 +15,19 @@ int main(int argc, char **argv)
     bool autoConfirm = false;
 
     auto *installCmd = app.add_subcommand("install", "Install a package");
+    installCmd->alias("i");
     installCmd->add_option("package", rawinput, "Name of the package to install")->required();
     installCmd->add_flag("-y,--yes", autoConfirm, "Automatically confirm prompts");
 
     auto *listCmd = app.add_subcommand("list", "List installed packages");
+    listCmd->alias("l");
+
+    auto *uninstallCmd = app.add_subcommand("uninstall", "Uninstall a package");
+    uninstallCmd->alias("remove");
+    uninstallCmd->alias("rm");
+    uninstallCmd->alias("un");
+    uninstallCmd->add_option("package", rawinput, "Name of the package to uninstall")->required();
+    uninstallCmd->add_flag("-y,--yes", autoConfirm, "Automatically confirm prompts");
 
     CLI11_PARSE(app, argc, argv);
 
@@ -158,6 +167,64 @@ int main(int argc, char **argv)
             {
                 std::cout << " - " << pkg.name << " v" << pkg.version << " (Installed at: " << pkg.installPath << ")\n";
             }
+        }
+    }
+
+    if (*uninstallCmd)
+    {
+        std::string packageName = rawinput;
+        std::string installPath;
+
+        spm::Database db(spm::getDatabasePath());
+        db.initializeSchema();
+
+        if (!db.isPackageRegistered(packageName))
+        {
+            std::cout << "[spm] Package '" << packageName << "' is not installed.\n";
+            return 0;
+        }
+
+        installPath = db.getPackageInstallPath(packageName);
+
+        char confirmInput = 'n';
+
+        if (autoConfirm)
+        {
+            std::cout << "[spm] Skipping confirmation (-y enabled)...\n";
+        }
+        else
+        {
+            std::cout << "[spm] Are you sure you want to uninstall '" << packageName << "'? (y/N): ";
+            std::cin >> confirmInput;
+            confirmInput = std::tolower(confirmInput);
+
+            if (confirmInput != 'y')
+            {
+                std::cout << "[spm] Uninstallation aborted by user.\n";
+                return 0;
+            }
+        }
+
+        std::error_code ec;
+        std::filesystem::remove_all(installPath, ec);
+
+        // Clean up the corresponding symlink or .bat wrapper from spm\bin
+        std::string binDir = spm::getUserDirectory() + "/bin";
+        std::filesystem::path symlinkPath = std::filesystem::path(binDir) / (packageName + ".exe");
+        std::filesystem::path batPath = std::filesystem::path(binDir) / (packageName + ".bat");
+        if (std::filesystem::exists(symlinkPath))
+            std::filesystem::remove(symlinkPath);
+        if (std::filesystem::exists(batPath))
+            std::filesystem::remove(batPath);
+
+        // Remove from SQLite database
+        if (db.removePackage(packageName))
+        {
+            std::cout << "[spm] Successfully uninstalled " << packageName << "!\n";
+        }
+        else
+        {
+            std::cerr << "[spm] Failed to remove package record from database.\n";
         }
     }
 

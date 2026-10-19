@@ -77,6 +77,34 @@ namespace spm
         return true;
     }
 
+    bool Database::removePackage(const std::string &name)
+    {
+        if (!db_)
+            return false;
+
+        std::string sql = "DELETE FROM installed_packages WHERE name = ?;";
+        sqlite3_stmt *stmt = nullptr;
+
+        if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+        {
+            std::cerr << "[spm] Failed to prepare statement: " << sqlite3_errmsg(db_) << "\n";
+            return false;
+        }
+
+        sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
+
+        int rc = sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+
+        if (rc != SQLITE_DONE)
+        {
+            std::cerr << "[spm] Failed to execute delete: " << sqlite3_errmsg(db_) << "\n";
+            return false;
+        }
+
+        return true;
+    }
+
     bool Database::isPackageRegistered(const std::string &name)
     {
         if (!db_)
@@ -143,6 +171,32 @@ namespace spm
 
         sqlite3_finalize(stmt);
         return isRegistered;
+    }
+
+    std::string Database::getPackageInstallPath(const std::string &name)
+    {
+        if (!db_)
+            return "";
+
+        std::string sql = "SELECT install_path FROM installed_packages WHERE name = ?;";
+        sqlite3_stmt *stmt = nullptr;
+
+        if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+        {
+            std::cerr << "[spm] Failed to prepare statement: " << sqlite3_errmsg(db_) << "\n";
+            return "";
+        }
+
+        sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
+
+        int rc = sqlite3_step(stmt);
+        std::string installPath = "";
+        if (rc == SQLITE_ROW)
+        {
+            installPath = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+        }
+        sqlite3_finalize(stmt);
+        return installPath;
     }
 
     std::vector<InstalledPackage> Database::getInstalledPackages()
