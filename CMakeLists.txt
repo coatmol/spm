@@ -4,6 +4,11 @@ project(spm LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Silence the CMP0135 warning for URL downloads in modern CMake
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -20,8 +25,7 @@ FetchContent_MakeAvailable(nlohmann_json)
 
 add_executable(spm
     src/main.cpp
-    # src/cli.cpp
-    # src/downloader.cpp
+    src/downloader.cpp
 )
 
 target_include_directories(spm PRIVATE include)

@@ -2,8 +2,10 @@
 #include <CLI/CLI.hpp>
 #include <nlohmann/json.hpp>
 
+#include "downloader.hpp"
+
 int main(int argc, char** argv) {
-    CLI::App app{"spm - A lightweight package manager"};
+    CLI::App app{"spm - Simple Package Manager"};
 
     std::string packageName;
     
@@ -12,16 +14,20 @@ int main(int argc, char** argv) {
 
     CLI11_PARSE(app, argc, argv);
 
-    // Handle the commands
     if (*installCmd) {
-        std::cout << "[spm] Installing package: " << packageName << "...\n";
-        
-        // Test that nlohmann/json is working properly
-        nlohmann::json manifest = {
-            {"name", packageName},
-            {"status", "pending_download"}
-        };
-        std::cout << "[spm] Generated manifest config:\n" << manifest.dump(4) << "\n";
+        std::cout << "[spm] Looking up package: " << packageName << "...\n";
+
+        // Test downloading a JSON response from a public test API (e.g., httpbin.org)
+        std::string responseBody;
+        if (spm::Downloader::downloadText("https://httpbin.org", "/json", responseBody)) {
+            std::cout << "[spm] Received registry metadata:\n";
+            
+            // Parse and pretty-print the JSON response
+            auto jsonDoc = nlohmann::json::parse(responseBody);
+            std::cout << jsonDoc.dump(2) << "\n";
+        } else {
+            std::cerr << "[spm] Failed to fetch package metadata.\n";
+        }
     } else {
         std::cout << "Usage: spm install <package-name>\n";
     }
