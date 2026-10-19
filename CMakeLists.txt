@@ -33,6 +33,7 @@ add_executable(spm
     src/main.cpp
     src/downloader.cpp
     src/database.cpp
+    src/extractor.cpp
 )
 
 target_include_directories(spm PRIVATE include)

@@ -4,6 +4,7 @@
 
 #include "downloader.hpp"
 #include "database.hpp"
+#include "extractor.hpp"
 
 std::string getDatabasePath()
 {
@@ -118,6 +119,16 @@ int main(int argc, char **argv)
         }
 
         // Extract and Register in SQLite
+        std::cout << "[spm] Extracting package archive...\n";
+
+        if (!spm::Extractor::extractZip(targetArchivePath, targetInstallDir))
+        {
+            std::cerr << "[spm] Failed to extract package archive.\n";
+            return 1;
+        }
+
+        std::filesystem::remove(targetArchivePath);
+
         spm::Database db(getDatabasePath());
         db.initializeSchema();
 
@@ -125,8 +136,6 @@ int main(int argc, char **argv)
         {
             std::cout << "[spm] Successfully installed " << packageName << " v" << targetVersion << " into " << targetInstallDir << "!\n";
         }
-
-        std::filesystem::remove(targetArchivePath);
     }
     else
     {
