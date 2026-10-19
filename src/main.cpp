@@ -5,45 +5,7 @@
 #include "downloader.hpp"
 #include "database.hpp"
 #include "extractor.hpp"
-
-std::string getDatabasePath()
-{
-    std::filesystem::path spmDir;
-
-    const char *userProfile = std::getenv("USERPROFILE");
-    if (userProfile)
-    {
-        spmDir = userProfile;
-    }
-    else
-    {
-        spmDir = "."; // Fallback to current directory if USERPROFILE isn't found
-    }
-
-    // Append .spm directory and create it if it doesn't exist
-    spmDir /= ".spm";
-    std::filesystem::create_directories(spmDir);
-
-    // Append the database filename
-    spmDir /= "index.db";
-    return spmDir.string();
-}
-
-std::string getUserDirectory()
-{
-    std::filesystem::path appsDir;
-    const char *localAppData = std::getenv("LOCALAPPDATA");
-    if (localAppData)
-    {
-        appsDir = localAppData;
-    }
-    else
-    {
-        appsDir = std::filesystem::current_path(); // Fallback
-    }
-    appsDir /= "spm";
-    return appsDir.string();
-}
+#include "utils.hpp"
 
 int main(int argc, char **argv)
 {
@@ -121,8 +83,7 @@ int main(int argc, char **argv)
             }
         }
 
-        // Set up local paths and download archive
-        std::string baseDir = getUserDirectory();
+        std::string baseDir = spm::getUserDirectory();
         std::string tempDir = baseDir + "/temp";
         std::string targetInstallDir = baseDir + "/apps/" + packageName;
         std::string targetArchivePath = tempDir + "/" + packageName + ".zip";
@@ -150,13 +111,18 @@ int main(int argc, char **argv)
 
         std::filesystem::remove(targetArchivePath);
 
-        spm::Database db(getDatabasePath());
+        spm::Database db(spm::getDatabasePath());
         db.initializeSchema();
 
         if (db.registerPackage(packageName, targetVersion, targetInstallDir))
         {
             std::cout << "[spm] Successfully installed " << packageName << " v" << targetVersion << " into " << targetInstallDir << "!\n";
         }
+
+        spm::linkExecutables(targetInstallDir, baseDir + "/bin");
+        spm::addToUserPath(baseDir + "/bin");
+
+        std::cout << "[spm] Installation complete. You may need to restart your terminal for PATH changes to take effect.\n";
     }
     else
     {
