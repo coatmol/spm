@@ -28,52 +28,105 @@ std::string getDatabasePath()
     return spmDir.string();
 }
 
+std::string getUserDirectory()
+{
+    std::filesystem::path appsDir;
+    const char *localAppData = std::getenv("LOCALAPPDATA");
+    if (localAppData)
+    {
+        appsDir = localAppData;
+    }
+    else
+    {
+        appsDir = std::filesystem::current_path(); // Fallback
+    }
+    appsDir /= "spm";
+    return appsDir.string();
+}
+
 int main(int argc, char **argv)
 {
     CLI::App app{"spm - Simple Package Manager"};
 
-    std::string packageName;
+    std::string rawinput;
 
     auto *installCmd = app.add_subcommand("install", "Install a package");
-    installCmd->add_option("package", packageName, "Name of the package to install")->required();
+    installCmd->add_option("package", rawinput, "Name of the package to install")->required();
 
     CLI11_PARSE(app, argc, argv);
 
     if (*installCmd)
     {
-        std::cout << "[spm] Looking up package: " << packageName << "...\n";
+        std::string packageName = rawinput;
+        std::string requestedVersion = "";
 
-        std::string dbPath = getDatabasePath();
-        std::cout << "[spm] Using state database at: " << dbPath << "\n";
-
-        // Initialize the local SQLite database
-        spm::Database db(dbPath);
-        if (!db.initializeSchema())
+        size_t atPos = packageName.find('@');
+        if (atPos != std::string::npos)
         {
-            std::cerr << "[spm] Failed to initialize local database state.\n";
+            requestedVersion = packageName.substr(atPos + 1);
+            packageName = packageName.substr(0, atPos);
+        }
+
+        std::cout << "[spm] Looking up package: " << packageName << " (v" << (requestedVersion == "" ? "latest" : requestedVersion) << ")...\n";
+
+        std::string registryHost = "raw.githubusercontent.com";
+        std::string registryPath = "/coatmol/spm-registry/master/registry.json"; // TODO: Let users configure this via a config file
+
+        std::string registryJsonStr;
+        if (!spm::Downloader::downloadText(registryHost, registryPath, registryJsonStr))
+        {
+            std::cerr << "[spm] Failed to fetch registry index from GitHub.\n";
             return 1;
         }
 
-        // Fetch mock package metadata from the network
-        std::string responseBody;
-        if (spm::Downloader::downloadText("https://httpbin.org", "/json", responseBody))
+        auto registry = nlohmann::json::parse(registryJsonStr);
+        if (!registry["packages"].contains(packageName))
         {
-            std::cout << "[spm] Received registry metadata:\n";
-
-            auto jsonDoc = nlohmann::json::parse(responseBody);
-            std::cout << jsonDoc.dump(2) << "\n";
-
-            // 3. Register the package installation locally in SQLite
-            std::string dummyInstallPath = "C:/Program Files/spm/" + packageName;
-            if (db.registerPackage(packageName, "1.0.0", dummyInstallPath))
-            {
-                std::cout << "[spm] Successfully recorded " << packageName << " in state database!\n";
-            }
+            std::cerr << "[spm] Package '" << packageName << "' not found in registry!\n";
+            return 1;
         }
-        else
+
+        auto pkgEntry = registry["packages"][packageName];
+        std::string targetVersion = requestedVersion.empty() ? pkgEntry["latest"] : requestedVersion;
+
+        if (!pkgEntry["versions"].contains(targetVersion))
         {
-            std::cerr << "[spm] Failed to fetch package metadata.\n";
+            std::cerr << "[spm] Version '" << targetVersion << "' for package '" << packageName << "' does not exist!\n";
+            return 1;
         }
+
+        std::string downloadUrl = pkgEntry["versions"][targetVersion]["url"];
+        std::cout << "[spm] Found target version: " << targetVersion << "\n";
+        std::cout << "[spm] Download URL: " << downloadUrl << "\n";
+
+        // Set up local paths and download archive
+        std::string baseDir = getUserDirectory();
+        std::string tempDir = baseDir + "/temp";
+        std::string targetInstallDir = baseDir + "/apps/" + packageName;
+        std::string targetArchivePath = tempDir + "/" + packageName + ".zip";
+
+        std::filesystem::create_directories(tempDir);
+        std::filesystem::create_directories(targetInstallDir);
+
+        std::cout << "[spm] Downloading package archive...\n";
+
+        size_t hostEndPos = downloadUrl.find('/', downloadUrl.find("://") + 3);
+        if (!spm::Downloader::downloadFile(downloadUrl.substr(0, hostEndPos), downloadUrl.substr(hostEndPos), targetArchivePath))
+        {
+            std::cerr << "[spm] Failed to download package archive from: " << downloadUrl << "\n";
+            return 1;
+        }
+
+        // Extract and Register in SQLite
+        spm::Database db(getDatabasePath());
+        db.initializeSchema();
+
+        if (db.registerPackage(packageName, targetVersion, targetInstallDir))
+        {
+            std::cout << "[spm] Successfully installed " << packageName << " v" << targetVersion << " into " << targetInstallDir << "!\n";
+        }
+
+        std::filesystem::remove(targetArchivePath);
     }
     else
     {
