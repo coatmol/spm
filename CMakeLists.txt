@@ -23,9 +23,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
+FetchContent_Declare(sqlite3
+    GIT_REPOSITORY https://github.com/sjinks/sqlite3-cmake
+    GIT_TAG v3.49.1
+)
+FetchContent_MakeAvailable(sqlite3)
+
 add_executable(spm
     src/main.cpp
     src/downloader.cpp
+    src/database.cpp
 )
 
 target_include_directories(spm PRIVATE include)
@@ -33,4 +40,5 @@ target_include_directories(spm PRIVATE include)
 target_link_libraries(spm PRIVATE 
     CLI11::CLI11 
     nlohmann_json
+    SQLite::SQLite3
 )
