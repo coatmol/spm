@@ -77,4 +77,72 @@ namespace spm
         return true;
     }
 
+    bool Database::isPackageRegistered(const std::string &name)
+    {
+        if (!db_)
+            return false;
+
+        std::string sql = "SELECT COUNT(*) FROM installed_packages WHERE name = ?;";
+
+        sqlite3_stmt *stmt = nullptr;
+
+        if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+        {
+            std::cerr << "[spm] Failed to prepare statement: " << sqlite3_errmsg(db_) << "\n";
+            return false;
+        }
+
+        sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
+
+        int rc = sqlite3_step(stmt);
+        bool isRegistered = false;
+
+        if (rc == SQLITE_ROW)
+        {
+            int count = sqlite3_column_int(stmt, 0);
+            isRegistered = (count > 0);
+        }
+        else
+        {
+            std::cerr << "[spm] Failed to execute query: " << sqlite3_errmsg(db_) << "\n";
+        }
+
+        sqlite3_finalize(stmt);
+        return isRegistered;
+    }
+
+    bool Database::isPackageRegistered(const std::string &name, const std::string &version)
+    {
+        if (!db_)
+            return false;
+
+        std::string sql = "SELECT COUNT(*) FROM installed_packages WHERE name = ? AND version = ?;";
+        sqlite3_stmt *stmt = nullptr;
+
+        if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+        {
+            std::cerr << "[spm] Failed to prepare statement: " << sqlite3_errmsg(db_) << "\n";
+            return false;
+        }
+
+        sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 2, version.c_str(), -1, SQLITE_TRANSIENT);
+
+        int rc = sqlite3_step(stmt);
+        bool isRegistered = false;
+
+        if (rc == SQLITE_ROW)
+        {
+            int count = sqlite3_column_int(stmt, 0);
+            isRegistered = (count > 0);
+        }
+        else
+        {
+            std::cerr << "[spm] Failed to execute query: " << sqlite3_errmsg(db_) << "\n";
+        }
+
+        sqlite3_finalize(stmt);
+        return isRegistered;
+    }
+
 } // namespace spm

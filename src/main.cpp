@@ -54,6 +54,19 @@ int main(int argc, char **argv)
         auto pkgEntry = registry["packages"][packageName];
         std::string targetVersion = requestedVersion.empty() ? pkgEntry["latest"] : requestedVersion;
 
+        spm::Database db(spm::getDatabasePath());
+        db.initializeSchema();
+
+        if (db.isPackageRegistered(packageName, targetVersion))
+        {
+            std::cout << "[spm] Package '" << packageName << "' (v" << (targetVersion.empty() ? "latest" : targetVersion) << ") is already installed.\n";
+            return 0;
+        }
+        else if (db.isPackageRegistered(packageName))
+        {
+            std::cout << "[spm] Package '" << packageName << "' is already installed, but not the requested version. Proceeding with installation of v" << targetVersion << ".\n";
+        }
+
         if (!pkgEntry["versions"].contains(targetVersion))
         {
             std::cerr << "[spm] Version '" << targetVersion << "' for package '" << packageName << "' does not exist!\n";
@@ -110,9 +123,6 @@ int main(int argc, char **argv)
         }
 
         std::filesystem::remove(targetArchivePath);
-
-        spm::Database db(spm::getDatabasePath());
-        db.initializeSchema();
 
         if (db.registerPackage(packageName, targetVersion, targetInstallDir))
         {
