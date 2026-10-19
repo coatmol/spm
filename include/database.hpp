@@ -1,9 +1,17 @@
 #pragma once
 #include <string>
 #include <sqlite3.h>
+#include <vector>
 
 namespace spm
 {
+    struct InstalledPackage
+    {
+        std::string name;
+        std::string version;
+        std::string installPath;
+    };
+
     class Database
     {
     public:
@@ -19,6 +27,8 @@ namespace spm
 
         bool isPackageRegistered(const std::string &name);
         bool isPackageRegistered(const std::string &name, const std::string &version);
+
+        std::vector<InstalledPackage> getInstalledPackages();
 
     private:
         sqlite3 *db_ = nullptr;

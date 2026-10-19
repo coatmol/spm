@@ -11,6 +11,17 @@
       "cwd": "${workspaceFolder}",
       "environment": [],
       "console": "externalTerminal"
+    },
+    {
+      "name": "List Installed Packages",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": ["list"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "console": "externalTerminal"
     }
   ]
 }

@@ -18,6 +18,8 @@ int main(int argc, char **argv)
     installCmd->add_option("package", rawinput, "Name of the package to install")->required();
     installCmd->add_flag("-y,--yes", autoConfirm, "Automatically confirm prompts");
 
+    auto *listCmd = app.add_subcommand("list", "List installed packages");
+
     CLI11_PARSE(app, argc, argv);
 
     if (*installCmd)
@@ -97,9 +99,9 @@ int main(int argc, char **argv)
         }
 
         std::string baseDir = spm::getUserDirectory();
-        std::string tempDir = baseDir + "/temp";
-        std::string targetInstallDir = baseDir + "/apps/" + packageName;
-        std::string targetArchivePath = tempDir + "/" + packageName + ".zip";
+        std::string tempDir = baseDir + "\\temp";
+        std::string targetInstallDir = baseDir + "\\apps\\" + packageName;
+        std::string targetArchivePath = tempDir + "\\" + packageName + ".zip";
 
         std::filesystem::create_directories(tempDir);
         std::filesystem::create_directories(targetInstallDir);
@@ -129,14 +131,34 @@ int main(int argc, char **argv)
             std::cout << "[spm] Successfully installed " << packageName << " v" << targetVersion << " into " << targetInstallDir << "!\n";
         }
 
-        spm::linkExecutables(targetInstallDir, baseDir + "/bin");
-        spm::addToUserPath(baseDir + "/bin");
+        spm::linkExecutables(targetInstallDir, baseDir + "\\bin");
+        spm::addToUserPath(baseDir + "\\bin");
 
         std::cout << "[spm] Installation complete. You may need to restart your terminal for PATH changes to take effect.\n";
     }
     else
     {
         std::cout << "Usage: spm install <package-name>\n";
+    }
+
+    if (*listCmd)
+    {
+        spm::Database db(spm::getDatabasePath());
+        db.initializeSchema();
+
+        auto installedPackages = db.getInstalledPackages();
+        if (installedPackages.empty())
+        {
+            std::cout << "[spm] No packages are currently installed.\n";
+        }
+        else
+        {
+            std::cout << "[spm] Found " << installedPackages.size() << " Installed Packages:\n";
+            for (const auto &pkg : installedPackages)
+            {
+                std::cout << " - " << pkg.name << " v" << pkg.version << " (Installed at: " << pkg.installPath << ")\n";
+            }
+        }
     }
 
     return 0;

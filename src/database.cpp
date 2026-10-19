@@ -145,4 +145,28 @@ namespace spm
         return isRegistered;
     }
 
+    std::vector<InstalledPackage> Database::getInstalledPackages()
+    {
+        if (!db_)
+            return std::vector<InstalledPackage>();
+
+        std::vector<InstalledPackage> packages;
+        sqlite3_stmt *stmt;
+        const char *sql = "SELECT name, version, install_path FROM installed_packages;";
+
+        if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) == SQLITE_OK)
+        {
+            while (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                InstalledPackage pkg;
+                pkg.name = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+                pkg.version = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1));
+                pkg.installPath = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2));
+                packages.push_back(pkg);
+            }
+            sqlite3_finalize(stmt);
+        }
+        return packages;
+    }
+
 } // namespace spm
