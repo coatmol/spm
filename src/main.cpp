@@ -145,10 +145,6 @@ int main(int argc, char **argv)
 
         std::cout << "[spm] Installation complete. You may need to restart your terminal for PATH changes to take effect.\n";
     }
-    else
-    {
-        std::cout << "Usage: spm install <package-name>\n";
-    }
 
     if (*listCmd)
     {
@@ -226,6 +222,11 @@ int main(int argc, char **argv)
         {
             std::cerr << "[spm] Failed to remove package record from database.\n";
         }
+    }
+
+    if (!*installCmd && !*listCmd && !*uninstallCmd)
+    {
+        std::cout << app.help();
     }
 
     return 0;
